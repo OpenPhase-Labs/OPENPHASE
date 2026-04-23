@@ -1,0 +1,58 @@
+// Copyright (c) 2026 Heritage Grid, LLC. All rights reserved.
+//
+// OpenPhase v1 — gRPC Ingestion Service
+// Defines the standard server-side gRPC contract for accepting
+// pushed OpenPhase telemetry from field devices.
+//
+// Devices publish:
+//   - PublishUpdate(IntersectionUpdate)         — single multi-payload envelope
+//   - PublishBatch(CompactEventBatch)           — single delta-encoded IHR batch
+//   - StreamBatches(stream CompactEventBatch)   — long-lived streaming push
+//
+// Each RPC returns a `PublishAck` with the count of accepted events
+// and an error string (empty on success).
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// PATENT NOTICE:
+// This protocol and its implementation are protected by patents, including
+// Patent Pending (PPA filed 2026-03-24). Use of this source code is subject
+// to the patent grant provided under Section 2.1 of the MPL 2.0.
+//
+// Any modifications to this file must be made available under the MPL 2.0
+// as described in the license terms.
+
+syntax = "proto3";
+
+package openphase.v1;
+
+import "openphase/v1/common.proto";
+
+// Acknowledgement returned by every IngestionService RPC.
+message PublishAck {
+  uint32 events_accepted = 1;       // Number of events successfully decoded and persisted
+  string error = 2;                 // Empty on success; human-readable error otherwise
+}
+
+// gRPC service for pushing OpenPhase telemetry to an ingestion server.
+//
+// Transport-agnostic: the same `IntersectionUpdate` and `CompactEventBatch`
+// messages used over NATS/MQTT travel here unchanged.
+service IngestionService {
+  // Push a single multi-payload update (SPaT, IHR event, health, security,
+  // discovery, fault, controller config/status). Use for low-volume or
+  // mixed-payload publishing where each message stands alone.
+  rpc PublishUpdate(IntersectionUpdate) returns (PublishAck);
+
+  // Push a single batch of IHR events with delta-encoded timestamps.
+  // Use for medium-volume periodic pushes (e.g., every few seconds).
+  rpc PublishBatch(CompactEventBatch) returns (PublishAck);
+
+  // Long-lived client-streaming push of IHR event batches. Devices keep
+  // the stream open and push batches as they're produced. Server returns
+  // a single PublishAck when the stream closes (cumulative count). Use
+  // for high-volume continuous telemetry (the common ATSPM streaming case).
+  rpc StreamBatches(stream CompactEventBatch) returns (PublishAck);
+}
