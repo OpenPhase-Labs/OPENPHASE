@@ -18,15 +18,18 @@ OpenPhase is an open-source protocol specification for modern traffic signal inf
 
 ## Schema Domains
 
-| File | Domain | Description |
-|------|--------|-------------|
-| `common.proto` | Wrapper | Master message envelope (`IntersectionUpdate`) with `oneof` discriminator |
-| `spat.proto` | SPaT | Signal Phase and Timing — live phase state for V2X/GLOSA (SAE J2735 compliant) |
-| `ihr_events.proto` | ATSPM | Indiana Hi-Resolution event logging — 2M+ events/day for analytics |
-| `health.proto` | Telemetry | Device health heartbeat — system resources, communication stats, environmental |
-| `security.proto` | Security | Threat detection and veto alerts — spoofing, intrusion, conflict monitoring |
-| `discovery.proto` | Discovery | Self-learning unmapped SDLC bit transitions for auto-configuration |
-| `faults.proto` | Faults | Fault snapshots — state capture at time of fault with event history |
+| File | Domain | Docs | Description |
+|------|--------|------|-------------|
+| `common.proto` | Wrapper | [docs/common.md](docs/common.md) | Master message envelope (`IntersectionUpdate`), batch wrappers, `ClockSource` |
+| `ihr_events.proto` | ATSPM | [docs/ihr_events.md](docs/ihr_events.md) | Indiana Hi-Resolution event log (`AtspmEvent`, `EventType`, `CompactEvent`) |
+| `spat.proto` | SPaT | [docs/spat.md](docs/spat.md) | Signal Phase and Timing — live phase state for V2X/GLOSA (SAE J2735 compliant) |
+| `ntcip.proto` | NTCIP MIB | [docs/ntcip.md](docs/ntcip.md) | Protobuf rendering of NTCIP 1202 v03A Actuated Signal Controller MIB |
+| `health.proto` | Telemetry | [docs/health.md](docs/health.md) | Device health heartbeat — system resources, communication stats, environmental |
+| `security.proto` | Security | [docs/security.md](docs/security.md) | Threat detection and alerts — spoofing, intrusion, conflict monitoring |
+| `discovery.proto` | Discovery | [docs/discovery.md](docs/discovery.md) | Self-learning unmapped SDLC bit transitions for auto-configuration |
+| `faults.proto` | Faults | [docs/faults.md](docs/faults.md) | Fault snapshots — state capture at time of fault with event history |
+
+See **[docs/OVERVIEW.md](docs/OVERVIEW.md)** for the full protocol overview and how the schemas fit together.
 
 ---
 
@@ -35,8 +38,9 @@ OpenPhase is an open-source protocol specification for modern traffic signal inf
 ```
 openphase/v1/
 ├── common.proto        # Master wrapper (IntersectionUpdate, batch)
-├── spat.proto          # SPaT: live phase state (V2X/GLOSA)
 ├── ihr_events.proto    # ATSPM: Indiana Hi-Res event logging
+├── spat.proto          # SPaT: live phase state (V2X/GLOSA)
+├── ntcip.proto         # NTCIP 1202 v03A MIB object definitions
 ├── health.proto        # Device health heartbeat
 ├── security.proto      # Security alerts and threat detection
 ├── discovery.proto     # Self-learning bit discovery
@@ -55,7 +59,8 @@ All messages use the `openphase.v1` package namespace.
 - **Versioned packages** — `openphase.v1`, `openphase.v2` for breaking changes
 - **Standard types** — `google.protobuf.Timestamp` for nanosecond precision
 - **SAE J2735 compliant** — SPaT message structure matches J2735 MovementState semantics
-- **NTCIP 1202 compatible** — event codes map to industry-standard Purdue event numbers
+- **Indiana Hi-Resolution event log** — `EventType` in `ihr_events.proto` uses the canonical Indiana HiRes event codes (Sturdevant et al., INDOT/Purdue, November 2012)
+- **NTCIP 1202 v03A MIB** — `ntcip.proto` is a protobuf rendering of the OID-addressed Actuated Signal Controller MIB (May 2019). Indiana HiRes and NTCIP 1202 are distinct standards; NTCIP is OID-addressed and does not define an event-code enumeration
 
 ---
 
@@ -79,6 +84,6 @@ See [LICENSE](LICENSE) for full text and [PATENTS.md](PATENTS.md) for patent gra
 
 ---
 
-**Document Version**: 1.1
-**Last Updated**: 2026-03-30
+**Document Version**: 1.2
+**Last Updated**: 2026-04-22
 **Owner**: Protocol Engineering Team @ Heritage Grid, LLC
