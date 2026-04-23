@@ -53,8 +53,7 @@ All messages use the `openphase.v1` package namespace.
 
 ## Design Principles
 
-- **Event-based, not raw capture** — no raw SDLC frame dumps (too much bus traffic)
-- **Fault snapshots** — last N events at time of fault, not raw frame forensics
+- **Fault snapshots** — last N events at time of fault
 - **Master wrapper with `oneof`** — single envelope type for all message types
 - **Versioned packages** — `openphase.v1`, `openphase.v2` for breaking changes
 - **Standard types** — `google.protobuf.Timestamp` for nanosecond precision
@@ -86,4 +85,4 @@ See [LICENSE](LICENSE) for full text and [PATENTS.md](PATENTS.md) for patent gra
 
 **Document Version**: 1.2
 **Last Updated**: 2026-04-22
-**Owner**: Protocol Engineering Team @ Heritage Grid, LLC
+**Maintainer**: OpenPhase Labs, LLC (under license from Heritage Grid, LLC, the IP holder)
