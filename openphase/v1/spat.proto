@@ -1,0 +1,120 @@
+// Copyright (c) 2026 Heritage Grid, LLC. All rights reserved.
+//
+// OpenPhase v1 — SPaT: Signal Phase and Timing
+// Live phase state for V2X connected vehicle applications.
+// SAE J2735 compliant MovementState semantics.
+// Sub-10ms broadcast for GLOSA (Green Light Optimal Speed Advisory).
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// PATENT NOTICE:
+// This protocol and its implementation are protected by patents, including
+// Patent Pending (PPA filed 2026-03-24). Use of this source code is subject
+// to the patent grant provided under Section 2.1 of the MPL 2.0.
+//
+// Any modifications to this file must be made available under the MPL 2.0
+// as described in the license terms.
+
+syntax = "proto3";
+
+package openphase.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// SPaT: Live Phase State for V2X (SAE J2735 Compliant)
+//
+// `intersection_id` and `region_id` here are the SAE J2735 numeric DSRC
+// identifiers (used for V2X over-the-air SPaT broadcast and MAP cross-
+// reference) — NOT the friendly site identifier on `IntersectionUpdate`
+// in common.proto (e.g., "gdot-0142"). When wrapped in
+// `IntersectionUpdate`, both identifiers travel together.
+message SpatUpdate {
+  // Intersection identification (cross-reference with J2735 MAP message)
+  uint32 intersection_id = 1;           // J2735 regional intersection ID (uint16 range)
+  uint32 region_id = 2;                 // J2735 regional identifier (e.g., 0=USA)
+
+  // Movement states (one per signal group/lane assignment)
+  repeated MovementState movements = 3;
+
+  // Message metadata
+  uint32 sequence_number = 10;          // Incrementing message sequence (detect gaps/replays)
+  google.protobuf.Timestamp update_time = 11;  // Time this SPaT was generated
+}
+
+message MovementState {
+  uint32 signal_group_id = 1;           // Signal group ID (1-255, cross-ref to MAP message)
+  string movement_name = 2;             // Human-readable (e.g., "NB-Left", "SB-Thru")
+
+  // Current state
+  MovementPhaseState current_state = 3;
+
+  // Timing predictions (all fields optional, provide what's available)
+  TimeChangeDetails timing = 4;
+
+  // Connection to NEMA phase (for SDLC correlation)
+  repeated uint32 nema_phases = 10;     // NEMA phase IDs (1-16) that control this movement
+}
+
+message MovementPhaseState {
+  MovementEvent event_state = 1;        // J2735 movement event (stop-and-remain, etc.)
+
+  // Simplified color for backwards compatibility / quick checks
+  SignalColor color = 2;                // Current signal color (simplified view)
+}
+
+// SAE J2735 Movement Phase Event States
+enum MovementEvent {
+  MOVEMENT_EVENT_UNSPECIFIED = 0;
+
+  // === Vehicular States ===
+  UNAVAILABLE = 1;                      // State unknown or not available
+  DARK = 2;                             // Signal dark (power failure or off)
+  STOP_THEN_PROCEED = 3;                // Flashing red (stop, then proceed when clear)
+  STOP_AND_REMAIN = 4;                  // Solid red (stop and remain stopped)
+  PRE_MOVEMENT = 5;                     // Red clearance (protected turn about to start)
+  PERMISSIVE_MOVEMENT_ALLOWED = 6;      // Flashing yellow arrow (yield, then proceed)
+  PROTECTED_MOVEMENT_ALLOWED = 7;       // Green arrow or green ball (proceed)
+  PERMISSIVE_CLEARANCE = 8;             // Yellow ball (caution, prepare to stop)
+  PROTECTED_CLEARANCE = 9;              // Yellow arrow (protected turn ending)
+  CAUTION_CONFLICTING_TRAFFIC = 10;     // Flashing yellow (proceed with caution)
+
+  // === Pedestrian States ===
+  PED_WALK = 11;                        // Walk indication
+  PED_CLEARANCE = 12;                   // Flashing don't walk (clearance interval)
+  PED_DONT_WALK = 13;                   // Solid don't walk
+}
+
+message TimeChangeDetails {
+  // Time remaining in current state (all in milliseconds)
+  uint32 min_end_time = 1;              // Minimum time until state change (pessimistic)
+  uint32 likely_end_time = 2;           // Most likely time (best estimate for GLOSA)
+  uint32 max_end_time = 3;              // Maximum time until state change (optimistic)
+
+  // Confidence in timing prediction
+  TimingConfidence confidence = 4;
+
+  // Next state prediction (optional, if deterministic)
+  MovementEvent next_state = 5;
+  uint32 next_duration = 6;             // Expected duration of next state (ms)
+}
+
+enum TimingConfidence {
+  TIMING_CONFIDENCE_UNSPECIFIED = 0;
+  TIMING_UNAVAILABLE = 1;               // Timing not available (free mode, adaptive)
+  TIMING_LOW = 2;                       // Low confidence (+-5 seconds)
+  TIMING_MEDIUM = 3;                    // Medium confidence (+-2 seconds)
+  TIMING_HIGH = 4;                      // High confidence (+-500ms, coordinated)
+}
+
+enum SignalColor {
+  SIGNAL_COLOR_UNSPECIFIED = 0;
+  COLOR_DARK = 1;                       // No output (power failure or controller off)
+  COLOR_RED = 2;
+  COLOR_YELLOW = 3;
+  COLOR_GREEN = 4;
+  COLOR_FLASHING_RED = 5;
+  COLOR_FLASHING_YELLOW = 6;
+  COLOR_FLASHING_GREEN = 7;             // Rare, but exists in some jurisdictions
+}

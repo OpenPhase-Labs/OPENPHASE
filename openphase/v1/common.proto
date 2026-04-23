@@ -1,0 +1,87 @@
+// Copyright (c) 2026 Heritage Grid, LLC. All rights reserved.
+//
+// OpenPhase v1 — Master Message Wrapper
+// Single envelope type for all OpenPhase messages over NATS JetStream.
+// Uses oneof discriminator for type-safe routing.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// PATENT NOTICE:
+// This protocol and its implementation are protected by patents, including
+// Patent Pending (PPA filed 2026-03-24). Use of this source code is subject
+// to the patent grant provided under Section 2.1 of the MPL 2.0.
+//
+// Any modifications to this file must be made available under the MPL 2.0
+// as described in the license terms.
+
+syntax = "proto3";
+
+package openphase.v1;
+
+import "google/protobuf/timestamp.proto";
+import "openphase/v1/spat.proto";
+import "openphase/v1/ihr_events.proto";
+import "openphase/v1/health.proto";
+import "openphase/v1/security.proto";
+import "openphase/v1/discovery.proto";
+import "openphase/v1/faults.proto";
+import "openphase/v1/ntcip.proto";
+
+// Clock Source — indicates time synchronization quality of the producing device.
+// Critical for ATSPM analytics (e.g., Purdue Coordination Diagrams) where
+// multi-intersection timing accuracy determines data quality.
+enum ClockSource {
+  CLOCK_SOURCE_UNSPECIFIED = 0;
+  CLOCK_PTP = 1;                        // IEEE 1588 PTP (microsecond accuracy)
+  CLOCK_NTP = 2;                        // NTP (10-50ms accuracy)
+  CLOCK_GPS = 3;                        // GPS/GNSS-derived time (microsecond accuracy)
+  CLOCK_POWER_LINE = 4;                 // Legacy 60Hz power line sync (unreliable, ~16ms jitter)
+  CLOCK_FREE_RUNNING = 5;              // No external sync (drift accumulates over time)
+}
+
+// Master Message Wrapper (NATS JetStream)
+message IntersectionUpdate {
+  string intersection_id = 1;           // UUID or site identifier (e.g., "gdot-0142")
+  google.protobuf.Timestamp ts = 2;     // Nanosecond precision timestamp
+
+  oneof payload {
+    SpatUpdate spat = 3;                // Live phase state (V2X/GLOSA)
+    AtspmEvent event = 4;               // High-res detector/phase log
+    SecurityAlert security = 5;         // Security veto alerts
+    DiscoveryPacket discovery = 6;      // Unmapped bit transitions (self-learning)
+    DeviceHealth health = 7;            // Heartbeat (every 60s)
+    FaultSnapshot fault = 8;            // State snapshot at time of fault
+    ControllerConfig config = 9;        // Full controller configuration (bulk upload/download)
+    ControllerStatus status = 10;       // Controller status snapshot (all registers)
+  }
+
+  // Time synchronization quality of the producing device.
+  // Enables ATSPM analytics to weight or flag data from devices with
+  // lower timing accuracy (e.g., legacy NTP-only controllers vs PTP-synced PRISM).
+  ClockSource clock_source = 15;
+}
+
+// Batch Wrapper (optional, for transport efficiency)
+// Full-fidelity: each update carries its own timestamp and payload discriminator.
+// Use for general-purpose batching where payload types are mixed.
+message IntersectionUpdateBatch {
+  string intersection_id = 1;           // Common intersection ID for all updates
+  repeated IntersectionUpdate updates = 2;  // Batched updates (ordered by timestamp)
+}
+
+// Compact Event Batch — delta-encoded for bandwidth-constrained backhaul.
+// Optimized for high-volume ATSPM telemetry over cellular or low-bandwidth links.
+// Events use millisecond offsets from a shared base timestamp, reducing per-event
+// size to ~4-8 bytes vs ~40+ bytes for full IntersectionUpdate wrappers.
+//
+// Use CompactEventBatch for homogeneous ATSPM event streams.
+// Use IntersectionUpdateBatch for mixed-payload batches.
+message CompactEventBatch {
+  string intersection_id = 1;           // Common intersection ID
+  int64 base_timestamp_ns = 2;         // Base timestamp: nanoseconds since Unix epoch (PTP precision)
+  ClockSource clock_source = 3;         // Time sync quality for this batch
+
+  repeated CompactEvent events = 4;     // Delta-encoded events (ordered by offset_ms)
+}

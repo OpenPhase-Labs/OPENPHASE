@@ -1,0 +1,76 @@
+// Copyright (c) 2026 Heritage Grid, LLC. All rights reserved.
+//
+// OpenPhase v1 — Fault Snapshots
+// Lightweight state capture at time of fault.
+// Includes recent event history and phase state —
+// NOT raw SDLC frame dumps (too large, poor signal-to-noise).
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// PATENT NOTICE:
+// This protocol and its implementation are protected by patents, including
+// Patent Pending (PPA filed 2026-03-24). Use of this source code is subject
+// to the patent grant provided under Section 2.1 of the MPL 2.0.
+//
+// Any modifications to this file must be made available under the MPL 2.0
+// as described in the license terms.
+
+syntax = "proto3";
+
+package openphase.v1;
+
+import "google/protobuf/timestamp.proto";
+import "openphase/v1/ihr_events.proto";
+import "openphase/v1/spat.proto";
+
+// Fault Snapshot: State at Time of Fault
+message FaultSnapshot {
+  FaultType fault_type = 1;             // Fault classification
+  google.protobuf.Timestamp fault_time = 2;  // Precise fault timestamp
+
+  // === Event History ===
+  // Last N events before the fault (typically ~100 events, ~10-30 seconds).
+  // Each `CompactEvent` carries an `offset_ms` from `history_base_timestamp_ns`,
+  // so absolute time = history_base_timestamp_ns + (offset_ms * 1_000_000).
+  // `history_base_timestamp_ns` is the timestamp of the EARLIEST event in
+  // `recent_events`; the latest event's absolute time should be at or just
+  // before `fault_time`.
+  int64 history_base_timestamp_ns = 14; // Base timestamp for `recent_events` offsets
+  repeated CompactEvent recent_events = 3;
+
+  // === Phase State at Fault ===
+  repeated MovementState phase_states = 4;  // Phase state snapshot
+
+  // === Fault Metadata ===
+  string fault_description = 10;        // Human-readable description
+  uint32 mmu_status_code = 11;          // MMU fault code (if MMU-related)
+  bytes mmu_fault_register = 12;        // MMU hardware fault register dump
+  bytes conflict_bitmask = 13;          // Conflicting phase bitmask (if applicable)
+
+  // === Diagnostic Context ===
+  uint32 active_timing_plan = 20;       // Timing plan ID active at fault time
+  CoordinationMode coordination_mode = 21;  // Coordination state at fault time
+  float sdlc_bus_health = 22;           // SDLC bus activity (0.0-1.0, 1.0=healthy)
+}
+
+enum FaultType {
+  FAULT_TYPE_UNSPECIFIED = 0;
+  MMU_CONFLICT_MONITOR = 1;             // MMU detected conflicting greens (red-red failure)
+  SDLC_TIMEOUT = 2;                     // SDLC bus communication lost
+  WATCHDOG_TIMEOUT = 3;                 // Firmware watchdog triggered
+  SECURITY_VETO = 4;                    // Security system vetoed operation
+  DECODER_ERROR = 5;                    // Event decoder encountered unrecoverable error
+  BUFFER_OVERFLOW = 6;                  // Event buffer full (events being dropped)
+  HARDWARE_FAULT = 7;                   // PRISM hardware fault (temp, voltage, etc.)
+}
+
+// Controller coordination state.
+enum CoordinationMode {
+  COORDINATION_MODE_UNSPECIFIED = 0;
+  COORDINATION_FREE = 1;                // Running free (no coordination)
+  COORDINATION_COORD = 2;               // Coordinated to a pattern/cycle
+  COORDINATION_PREEMPT = 3;             // Preemption active (overrides coordination)
+  COORDINATION_FLASH = 4;               // Cabinet in flash mode
+}

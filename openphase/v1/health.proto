@@ -1,0 +1,74 @@
+// Copyright (c) 2026 Heritage Grid, LLC. All rights reserved.
+//
+// OpenPhase v1 — Device Health Telemetry
+// Heartbeat message (every 60s) with system resources,
+// communication stats, environmental sensors, and version info.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// PATENT NOTICE:
+// This protocol and its implementation are protected by patents, including
+// Patent Pending (PPA filed 2026-03-24). Use of this source code is subject
+// to the patent grant provided under Section 2.1 of the MPL 2.0.
+//
+// Any modifications to this file must be made available under the MPL 2.0
+// as described in the license terms.
+
+syntax = "proto3";
+
+package openphase.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Overall device health classification.
+enum HealthStatus {
+  HEALTH_STATUS_UNSPECIFIED = 0;
+  HEALTH_OK = 1;                        // All subsystems normal
+  HEALTH_DEGRADED = 2;                  // Operational but with non-fatal issues (high temp, packet loss, etc.)
+  HEALTH_ERROR = 3;                     // Critical fault — device may be missing data or offline
+}
+
+// Device Health: Heartbeat (every 60s)
+message DeviceHealth {
+  HealthStatus status = 1;              // Overall device health
+  uint64 uptime_s = 2;                  // Device uptime in seconds
+
+  // === Event Statistics ===
+  uint64 events_decoded = 10;           // Total events decoded since boot
+  uint64 events_delivered = 11;         // Total events successfully published to NATS
+  uint64 events_pending = 12;           // Events queued (backlog indicator)
+  uint64 events_dropped = 13;           // Events dropped due to buffer overflow
+  uint64 discovery_packets = 14;        // Unmapped bit transitions observed
+
+  // === System Resources ===
+  float cpu_temp_c = 20;                // CPU temperature (Celsius)
+  float memory_used_pct = 21;           // RAM utilization percentage
+  float buffer_used_pct = 22;           // Event buffer utilization percentage
+  float disk_used_pct = 23;             // eMMC storage utilization (local logging)
+
+  // === Cabinet Environmental (J7 Sensors) ===
+  float cabinet_temp_c = 25;            // Cabinet temperature via DS18B20 (J7 pin 2)
+  bool cabinet_door_open = 26;          // Cabinet door status (J7 pin 3)
+  google.protobuf.Timestamp last_door_open = 27;  // Last door open event timestamp
+
+  // === Communication Health ===
+  uint64 sdlc_frames_received = 30;    // Total SDLC frames captured (J1)
+  uint64 sdlc_crc_errors = 31;          // Frames with CRC failures
+  float sdlc_frame_rate_hz = 32;        // Current SDLC bus activity (frames/sec)
+
+  uint64 can_frames_received = 35;     // Total CAN-FD frames captured (J4)
+  uint64 can_errors = 36;               // CAN bus errors (bus-off, error frames)
+  float can_frame_rate_hz = 37;         // Current CAN bus activity (frames/sec)
+
+  bool nats_connected = 40;             // NATS connection status (J3/J8)
+  uint64 nats_publish_errors = 41;      // NATS publish failures
+  string active_network_interface = 42; // "eth0" (J3) or "eth1" (J8) if failover active
+
+  // === Version Information ===
+  string firmware_version = 50;         // Firmware version (e.g., "2.1.3")
+  string decoder_version = 51;          // Event decoder version
+  string mapping_version = 52;          // Bit-to-event mapping table version
+  string hardware_revision = 53;        // PRISM hardware revision (e.g., "PRISM-v1.2")
+}

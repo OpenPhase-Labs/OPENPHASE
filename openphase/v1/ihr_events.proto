@@ -1,0 +1,205 @@
+// Copyright (c) 2026 Heritage Grid, LLC. All rights reserved.
+//
+// OpenPhase v1 — Indiana Hi-Resolution (IHR) Event Logging
+// The "Nervous System" — 2M+ events/day for ATSPM analytics.
+//
+// EventType enum values are Indiana Hi-Resolution Data Logger event codes
+// per Sturdevant et al., "Indiana Traffic Signal Hi Resolution Data Logger
+// Enumerations," INDOT/Purdue, November 2012 (doi:10.4231/K4RN35SH).
+//
+// Per the IHR spec, an event log entry is exactly two 8-bit fields:
+// Event Code (0-255) and Parameter (0-255). Intersection identifier and
+// timestamp are carried by the outer envelope (`IntersectionUpdate` for
+// single events, `CompactEventBatch` for batched transport).
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// PATENT NOTICE:
+// This protocol and its implementation are protected by patents, including
+// Patent Pending (PPA filed 2026-03-24). Use of this source code is subject
+// to the patent grant provided under Section 2.1 of the MPL 2.0.
+//
+// Any modifications to this file must be made available under the MPL 2.0
+// as described in the license terms.
+
+syntax = "proto3";
+
+package openphase.v1;
+
+// Indiana Hi-Resolution event log entry.
+//
+// Two 8-bit fields per the IHR spec. Producers MUST constrain values to
+// 0-255; protobuf has no native uint8 so uint32 is used on the wire
+// (varint encoding: 1 byte for 0-127, 2 bytes for 128-255).
+message AtspmEvent {
+  EventType code = 1;     // IHR Event Code (0-255)
+  uint32 param = 2;       // IHR Parameter (0-255) — semantics depend on `code`
+}
+
+// Indiana Hi-Resolution event log entry with a relative-time delta.
+// Used inside batches/snapshots that share a base timestamp:
+//   - `CompactEventBatch` (transport): events ordered by `offset_ms` from batch base.
+//   - `FaultSnapshot.recent_events`: history before fault, base on the snapshot.
+// Absolute time = base_timestamp_ns + (offset_ms * 1_000_000).
+message CompactEvent {
+  uint32 offset_ms = 1;   // Milliseconds from batch base_timestamp_ns (varint: 1-2 bytes for typical values)
+  EventType code = 2;     // Indiana Hi-Res Event Code (0-255)
+  uint32 param = 3;       // Indiana Hi-Res Parameter (0-255) — semantics depend on `code`
+}
+
+// Indiana Hi-Resolution Data Logger event codes (Purdue/INDOT 2012 spec).
+// Enum integer value == IHR event code. Names follow the spec verbatim
+// where possible.
+//
+// IHR code 0 ("Phase On NEMA") is intentionally omitted to preserve the
+// proto3 zero-value as `EVENT_TYPE_UNSPECIFIED`. Producers needing
+// Phase On NEMA semantics should emit Phase Begin Green (1) instead,
+// which carries the same operational meaning for ATSPM analytics.
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+
+  // ===== Active Phase Events (1–12, 13–20 reserved) =====
+  // `param` = phase number (1–16)
+  EVENT_PHASE_BEGIN_GREEN = 1;                   // Solid or flashing green begins
+  EVENT_PHASE_CHECK = 2;                         // Conflicting call registered (begins MAX timing)
+  EVENT_PHASE_MIN_COMPLETE = 3;                  // Minimum-green timer expired
+  EVENT_PHASE_GAP_OUT = 4;                       // Phase gapped out
+  EVENT_PHASE_MAX_OUT = 5;                       // Phase MAX timer expired
+  EVENT_PHASE_FORCE_OFF = 6;                     // Force-off applied to active green phase
+  EVENT_PHASE_GREEN_TERMINATION = 7;             // Green terminated into yellow or permissive (FYA)
+  EVENT_PHASE_BEGIN_YELLOW_CLEARANCE = 8;        // Yellow clearance begins
+  EVENT_PHASE_END_YELLOW_CLEARANCE = 9;          // Yellow clearance ends
+  EVENT_PHASE_BEGIN_RED_CLEARANCE = 10;          // Red clearance begins (only set if served)
+  EVENT_PHASE_END_RED_CLEARANCE = 11;            // Red clearance ends
+  EVENT_PHASE_INACTIVE = 12;                     // Phase no longer active in ring
+
+  // ===== Active Pedestrian Events (21–24, 25–30 reserved) =====
+  // `param` = phase number (1–16)
+  EVENT_PED_BEGIN_WALK = 21;                     // Walk indication active
+  EVENT_PED_BEGIN_CLEARANCE = 22;                // Flashing Don't Walk (FDW) active
+  EVENT_PED_BEGIN_SOLID_DONT_WALK = 23;          // Solid Don't Walk (post-FDW or post-dark)
+  EVENT_PED_DARK = 24;                           // Pedestrian outputs off
+
+  // ===== Barrier / Ring Events (31–33, 34–40 reserved) =====
+  EVENT_BARRIER_TERMINATION = 31;                // `param` = barrier # (1–8)
+  EVENT_FYA_BEGIN_PERMISSIVE = 32;               // `param` = FYA # (1–4)
+  EVENT_FYA_END_PERMISSIVE = 33;                 // `param` = FYA # (1–4)
+
+  // ===== Phase Control Events (41–49, 50–60 reserved) =====
+  // `param` = phase number (1–16)
+  EVENT_PHASE_HOLD_ACTIVE = 41;                  // Hold applied (coordinator/preemptor/external)
+  EVENT_PHASE_HOLD_RELEASED = 42;                // Hold released
+  EVENT_PHASE_CALL_REGISTERED = 43;              // Vehicular call registered (not set if recall exists)
+  EVENT_PHASE_CALL_DROPPED = 44;                 // Call cleared
+  EVENT_PED_CALL_REGISTERED = 45;                // Pedestrian call registered (not set if recall exists)
+  EVENT_PHASE_OMIT_ON = 46;                      // Dynamic phase-omit applied
+  EVENT_PHASE_OMIT_OFF = 47;                     // Dynamic phase-omit released
+  EVENT_PED_OMIT_ON = 48;                        // Dynamic ped-omit applied
+  EVENT_PED_OMIT_OFF = 49;                       // Dynamic ped-omit released
+
+  // ===== Overlap Events (61–70, 71–80 reserved) =====
+  // `param` = overlap number (A=1, B=2, …)
+  EVENT_OVERLAP_BEGIN_GREEN = 61;                // Overlap green active
+  EVENT_OVERLAP_BEGIN_TRAILING_GREEN = 62;       // Overlap green extension begins
+  EVENT_OVERLAP_BEGIN_YELLOW = 63;               // Overlap yellow clearance
+  EVENT_OVERLAP_BEGIN_RED_CLEARANCE = 64;        // Overlap red clearance begins
+  EVENT_OVERLAP_OFF = 65;                        // Overlap completed all timing
+  EVENT_OVERLAP_DARK = 66;                       // Overlap head set dark
+  EVENT_PED_OVERLAP_BEGIN_WALK = 67;             // Pedestrian overlap walk
+  EVENT_PED_OVERLAP_BEGIN_CLEARANCE = 68;        // Pedestrian overlap FDW
+  EVENT_PED_OVERLAP_BEGIN_SOLID_DONT_WALK = 69;  // Pedestrian overlap solid Don't Walk
+  EVENT_PED_OVERLAP_DARK = 70;                   // Pedestrian overlap outputs off
+
+  // ===== Detector Events (81–92, 93–100 reserved) =====
+  // Detector on/off events are emitted POST any detector delay/extension processing.
+  // `param` = detector channel number (1–64 vehicle, 1–16 pedestrian).
+  EVENT_DETECTOR_OFF = 81;                       // Vehicle left detection zone
+  EVENT_DETECTOR_ON = 82;                        // Vehicle entered detection zone
+  EVENT_DETECTOR_RESTORED = 83;                  // Detector restored to non-failed state
+  EVENT_DETECTOR_FAULT_OTHER = 84;               // Local controller diagnostic failure (other)
+  EVENT_DETECTOR_FAULT_WATCHDOG = 85;            // Watchdog fault
+  EVENT_DETECTOR_FAULT_OPEN_LOOP = 86;           // Open loop fault
+  EVENT_DETECTOR_FAULT_SHORTED_LOOP = 87;        // Shorted loop fault
+  EVENT_DETECTOR_FAULT_EXCESSIVE_CHANGE = 88;    // Excessive change fault
+  EVENT_PED_DETECTOR_OFF = 89;                   // Pedestrian detector inactive
+  EVENT_PED_DETECTOR_ON = 90;                    // Pedestrian detector active (may repeat per call)
+  EVENT_PED_DETECTOR_FAILED = 91;                // Pedestrian detector failed
+  EVENT_PED_DETECTOR_RESTORED = 92;              // Pedestrian detector restored
+
+  // ===== Preemption Events (101–115, 116–130 reserved) =====
+  // `param` = preempt number (1–10) for 101–111, TSP number (1–10) for 112–115.
+  EVENT_PREEMPT_ADVANCE_WARNING = 101;           // Advance warning input activated
+  EVENT_PREEMPT_CALL_INPUT_ON = 102;             // Preemption input activated
+  EVENT_PREEMPT_GATE_DOWN_INPUT = 103;           // Railroad gate-down input received
+  EVENT_PREEMPT_CALL_INPUT_OFF = 104;            // Preemption input deactivated
+  EVENT_PREEMPT_ENTRY_STARTED = 105;             // Preemption delay expired; controller transitioning
+  EVENT_PREEMPT_BEGIN_TRACK_CLEARANCE = 106;     // Track clearance phases green
+  EVENT_PREEMPT_BEGIN_DWELL_SERVICE = 107;       // Preemption dwell or limited service begins
+  EVENT_PREEMPT_LINK_ACTIVE_ON = 108;            // Linked preemptor input applied
+  EVENT_PREEMPT_LINK_ACTIVE_OFF = 109;           // Linked preemptor input dropped
+  EVENT_PREEMPT_MAX_PRESENCE_EXCEEDED = 110;     // Max-presence timer exceeded
+  EVENT_PREEMPT_BEGIN_EXIT_INTERVAL = 111;       // Exit-interval phases green
+  EVENT_TSP_CHECK_IN = 112;                      // Priority request received
+  EVENT_TSP_ADJUSTMENT_TO_EARLY_GREEN = 113;     // Cycle adjusted for early TSP service
+  EVENT_TSP_ADJUSTMENT_TO_EXTEND_GREEN = 114;    // Cycle adjusted for extended TSP service
+  EVENT_TSP_CHECK_OUT = 115;                     // Priority request retracted
+
+  // ===== Coordination Events (131–151, 152–170 reserved) =====
+  // For 131: `param` = pattern number (0–255).
+  // For 132: `param` = cycle length seconds (0–255; >255 recorded as 255).
+  // For 133: `param` = offset seconds (0–255; >255 recorded as 255).
+  // For 134–149: `param` = new split time in seconds (0–255).
+  // For 150: `param` = CoordCycleState enum value (0–6).
+  // For 151: `param` = phase number (1–16).
+  EVENT_COORD_PATTERN_CHANGE = 131;              // Active coordination pattern
+  EVENT_COORD_CYCLE_LENGTH_CHANGE = 132;         // Cycle length on new pattern
+  EVENT_COORD_OFFSET_LENGTH_CHANGE = 133;        // Offset on new pattern
+  EVENT_COORD_SPLIT_1_CHANGE = 134;              // New split time for phase 1
+  EVENT_COORD_SPLIT_2_CHANGE = 135;
+  EVENT_COORD_SPLIT_3_CHANGE = 136;
+  EVENT_COORD_SPLIT_4_CHANGE = 137;
+  EVENT_COORD_SPLIT_5_CHANGE = 138;
+  EVENT_COORD_SPLIT_6_CHANGE = 139;
+  EVENT_COORD_SPLIT_7_CHANGE = 140;
+  EVENT_COORD_SPLIT_8_CHANGE = 141;
+  EVENT_COORD_SPLIT_9_CHANGE = 142;
+  EVENT_COORD_SPLIT_10_CHANGE = 143;
+  EVENT_COORD_SPLIT_11_CHANGE = 144;
+  EVENT_COORD_SPLIT_12_CHANGE = 145;
+  EVENT_COORD_SPLIT_13_CHANGE = 146;
+  EVENT_COORD_SPLIT_14_CHANGE = 147;
+  EVENT_COORD_SPLIT_15_CHANGE = 148;
+  EVENT_COORD_SPLIT_16_CHANGE = 149;
+  EVENT_COORD_CYCLE_STATE_CHANGE = 150;          // `param` = CoordCycleState
+  EVENT_COORD_PHASE_YIELD_POINT = 151;           // Coordinated phase yield/cycle reference
+
+  // ===== Cabinet / System Events (171–185, 186–199 reserved) =====
+  EVENT_TEST_INPUT_ON = 171;                     // `param` = test input # (A=1, B=2, …)
+  EVENT_TEST_INPUT_OFF = 172;
+  EVENT_UNIT_FLASH_STATUS_CHANGE = 173;          // `param` = NTCIP 1202 §2.4.5 flash state
+  EVENT_UNIT_ALARM_STATUS_1_CHANGE = 174;        // `param` = NTCIP 1202 §2.4.8 alarm state
+  EVENT_ALARM_GROUP_STATE_CHANGE = 175;          // `param` = NTCIP 1202 §2.4.12.2 group state
+  EVENT_SPECIAL_FUNCTION_OUTPUT_ON = 176;        // `param` = special function # (vendor-defined)
+  EVENT_SPECIAL_FUNCTION_OUTPUT_OFF = 177;
+  EVENT_MANUAL_CONTROL_TOGGLE = 178;             // `param` = 0 (off) or 1 (on)
+  EVENT_INTERVAL_ADVANCE_TOGGLE = 179;           // `param` = 1 (leading edge) or 0 (lagging edge, optional)
+  EVENT_STOP_TIME_INPUT_TOGGLE = 180;            // `param` = 0 (off) or 1 (on)
+  EVENT_CONTROLLER_CLOCK_UPDATED = 181;          // `param` = correction in seconds (optional)
+  EVENT_POWER_FAILURE_DETECTED = 182;            // Line voltage 0–89 VAC for >100 ms
+  EVENT_POWER_RESTORED = 184;                    // Line voltage >98 VAC restored
+  EVENT_VENDOR_SPECIFIC_ALARM = 185;             // `param` = vendor-defined
+}
+
+// Coord cycle state values for `EVENT_COORD_CYCLE_STATE_CHANGE` (event 150).
+// Carried in `AtspmEvent.param` per Indiana Hi-Res spec.
+enum CoordCycleState {
+  COORD_CYCLE_STATE_FREE = 0;
+  COORD_CYCLE_STATE_IN_STEP = 1;
+  COORD_CYCLE_STATE_TRANSITION_ADD = 2;
+  COORD_CYCLE_STATE_TRANSITION_SUBTRACT = 3;
+  COORD_CYCLE_STATE_TRANSITION_DWELL = 4;
+  COORD_CYCLE_STATE_LOCAL_ZERO = 5;
+  COORD_CYCLE_STATE_BEGIN_PICKUP = 6;
+}

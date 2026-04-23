@@ -1,0 +1,43 @@
+// Copyright (c) 2026 Heritage Grid, LLC. All rights reserved.
+//
+// OpenPhase v1 — Self-Learning SDLC Bit Discovery
+// Automatically learns new controller bit mappings by
+// observing unmapped bit transitions on the SDLC bus.
+// Cloud heuristics cross-reference with controller FTP logs.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// PATENT NOTICE:
+// This protocol and its implementation are protected by patents, including
+// Patent Pending (PPA filed 2026-03-24). Use of this source code is subject
+// to the patent grant provided under Section 2.1 of the MPL 2.0.
+//
+// Any modifications to this file must be made available under the MPL 2.0
+// as described in the license terms.
+
+syntax = "proto3";
+
+package openphase.v1;
+
+// Discovery: Self-Learning Unmapped Bits
+message DiscoveryPacket {
+  uint32 sdlc_address = 1;              // SDLC device address (0x00-0x0F=BIU, 0x20=MMU)
+  uint32 byte_index = 2;                // Byte offset in SDLC frame payload
+  uint32 bit_index = 3;                 // Bit position within byte (0-7)
+  bool old_state = 4;                   // Previous bit state (0 or 1)
+  bool new_state = 5;                   // New bit state after transition
+  bytes frame_context = 6;              // Minimal frame context (surrounding bytes, not full raw frame)
+  Direction direction = 7;              // TX (controller->BIU) or RX (BIU->controller)
+
+  // Cloud learning: cross-reference with controller FTP logs
+  string suspected_event = 10;          // If cloud heuristic matches (e.g., "PHASE_2_GREEN")
+  float confidence = 11;                // Confidence score (0.0-1.0) if auto-mapped
+}
+
+enum Direction {
+  DIRECTION_UNSPECIFIED = 0;
+  TX = 1;                               // Controller -> BIU (poll commands, output states)
+  RX = 2;                               // BIU -> Controller (detector calls, status responses)
+}

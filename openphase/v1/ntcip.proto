@@ -1,0 +1,866 @@
+// Copyright (c) 2026 Heritage Grid, LLC. All rights reserved.
+//
+// OpenPhase v1 — NTCIP 1202 Object Definitions
+// Complete protobuf mapping of NTCIP 1202 v03 (Actuated Traffic Signal
+// Controller) MIB objects. Replaces SNMP GET/SET with protobuf messages.
+//
+// Every OID under 1.3.6.1.4.1.1206.4.2.1 (nema.transportation.devices.asc)
+// is represented as a protobuf message. OID paths are documented in comments
+// for cross-reference with the original MIB.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// PATENT NOTICE:
+// This protocol and its implementation are protected by patents, including
+// Patent Pending (PPA filed 2026-03-24). Use of this source code is subject
+// to the patent grant provided under Section 2.1 of the MPL 2.0.
+//
+// Any modifications to this file must be made available under the MPL 2.0
+// as described in the license terms.
+
+syntax = "proto3";
+
+package openphase.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// ============================================================
+// OID Base: 1.3.6.1.4.1.1206.4.2.1
+//   iso.org.dod.internet.private.enterprises.nema.
+//   transportation.devices.asc
+//
+// Object Groups (per NTCIP 1202 v03A §5):
+//   .1  Phase            — phaseTable (.1.2), phaseStatusGroupTable (.1.4), phaseControlGroupTable (.1.5)
+//   .2  Detector         — vehicleDetectorTable (.2.2), vehicleDetectorStatusGroupTable (.2.4),
+//                          pedestrianDetectorTable (.2.7), pedestrianDetectorStatusGroupTable (.2.9)
+//   .3  Unit             — startupFlash, autoPedClear, backupTime, redRevert, controlStatus,
+//                          flashStatus, alarmStatus1/2, shortAlarm, unitControl,
+//                          specialFunctionOutputTable (.3.14)
+//   .4  Coordination     — operationalMode, coordMaximumMode, coordForceMode,
+//                          patternTable (.4.7), splitTable (.4.9), coordPatternStatus,
+//                          localFreeStatus, cycleStatus, syncStatus, systemPatternControl
+//   .5  Timebase         — timebaseAscActionTable (.5.3); day-plan/schedule structures
+//                          inherit from NTCIP 1201 and are NOT redefined here
+//   .6  Preempt          — preemptTable (.6.2)
+//   .7  Ring             — sequenceTable (.7.3), ringControlGroupTable (.7.5),
+//                          ringStatusTable (.7.6)
+//   .8  Channel          — channelTable (.8.2), channelStatusGroupTable (.8.4)
+//   .9  Overlap          — overlapTable (.9.2), overlapStatusGroupTable (.9.4)
+//   .10 Port 1           (omitted — NEMA TS2 serial comm, not relevant to protobuf transport)
+//   .12 Cabinet          (cabinet environmental parameters — not modeled here)
+//   .13 ASC I/O Mapping  (input/output function mapping — not modeled here)
+//   .14 SIU Port 1       (ITS Cabinet V1 SIU bus — not modeled here)
+//
+// NTCIP 1202 v03A does NOT define a top-level Priority/TSP group.
+// TSP is exposed through the I/O mapping group (priorityRequest /
+// priorityCheckout input functions; preemptActive outputs).
+// ============================================================
+
+
+// ============================================================
+// 1. PHASE GROUP — OID .1.3.6.1.4.1.1206.4.2.1.1
+// ============================================================
+
+// Maximum number of phases supported by controller.
+// OID: .1.1.1.0 (maxPhases)
+// Read-only.
+
+// Phase parameter table — one entry per phase (up to 255 in v03).
+// OID: .1.1.2.1.{column}.{phase}
+// Per NTCIP 1202 v03A §5.2.2 (May 2019).
+message PhaseEntry {
+  // Row index
+  uint32 phase_number = 1;              // .1.1.2.1.1  phaseNumber (1-255)
+
+  // === Timing Parameters (units called out per field) ===
+  uint32 walk = 2;                      // .1.1.2.1.2  phaseWalk (0-255 SECONDS)
+  uint32 ped_clear = 3;                 // .1.1.2.1.3  phasePedestrianClear (0-255 SECONDS)
+  uint32 min_green = 4;                 // .1.1.2.1.4  phaseMinimumGreen (0-255 SECONDS)
+  uint32 passage = 5;                   // .1.1.2.1.5  phasePassage (0-255 tenth seconds)
+  uint32 max_green_1 = 6;               // .1.1.2.1.6  phaseMaximum1 (0-255 SECONDS)
+  uint32 max_green_2 = 7;               // .1.1.2.1.7  phaseMaximum2 (0-255 SECONDS)
+  uint32 yellow_change = 8;             // .1.1.2.1.8  phaseYellowChange (0-255 tenth seconds)
+  uint32 red_clear = 9;                 // .1.1.2.1.9  phaseRedClear (0-255 tenth seconds)
+  uint32 red_revert = 10;               // .1.1.2.1.10 phaseRedRevert (0-255 tenth seconds)
+  uint32 added_initial = 11;            // .1.1.2.1.11 phaseAddedInitial (0-255 tenth seconds)
+  uint32 max_initial = 12;              // .1.1.2.1.12 phaseMaximumInitial (0-255 SECONDS)
+  uint32 time_before_reduction = 13;    // .1.1.2.1.13 phaseTimeBeforeReduction (0-255 SECONDS)
+  uint32 cars_before_reduction = 14;    // .1.1.2.1.14 phaseCarsBeforeReduction (0-255 vehicles)
+  uint32 time_to_reduce = 15;           // .1.1.2.1.15 phaseTimeToReduce (0-255 SECONDS)
+  uint32 reduce_by = 16;                // .1.1.2.1.16 phaseReduceBy (0-255 tenth seconds)
+  uint32 min_gap = 17;                  // .1.1.2.1.17 phaseMinimumGap (0-255 tenth seconds)
+  uint32 dynamic_max_limit = 18;        // .1.1.2.1.18 phaseDynamicMaxLimit (0-255 SECONDS)
+  uint32 dynamic_max_step = 19;         // .1.1.2.1.19 phaseDynamicMaxStep (0-255 tenth seconds)
+
+  // === Configuration ===
+  PhaseStartup startup = 20;            // .1.1.2.1.20 phaseStartup
+  PhaseOptions options = 21;            // .1.1.2.1.21 phaseOptions (bitfield, see PhaseOptions)
+  uint32 ring = 22;                     // .1.1.2.1.22 phaseRing (0-255; 0 disables phase, 1..maxRings = ring assignment)
+  bytes concurrency = 23;               // .1.1.2.1.23 phaseConcurrency (OCTET STRING; each octet = a concurrent phase number)
+
+  // === v03 Extensions ===
+  uint32 max_green_3 = 24;                              // .1.1.2.1.24 phaseMaximum3 (0-6000 SECONDS)
+  uint32 yellow_red_change_before_end_ped_clear = 25;   // .1.1.2.1.25 phaseYellowandRedChangeTimeBeforeEndPedClear (0-255 tenth seconds)
+  uint32 ped_walk_service = 26;                         // .1.1.2.1.26 phasePedWalkService (1-255 recycles per cycle)
+  uint32 dont_walk_revert = 27;                         // .1.1.2.1.27 phaseDontWalkRevert (0-255 tenth seconds)
+  uint32 ped_alternate_clearance = 28;                  // .1.1.2.1.28 phasePedAlternateClearance (0-255 SECONDS)
+  uint32 ped_alternate_walk = 29;                       // .1.1.2.1.29 phasePedAlternateWalk (0-255 SECONDS)
+  uint32 ped_advance_walk_time = 30;                    // .1.1.2.1.30 phasePedAdvanceWalkTime (0-255 tenth seconds)
+  uint32 ped_delay_time = 31;                           // .1.1.2.1.31 phasePedDelayTime (0-255 tenth seconds)
+  uint32 adv_warn_grn_start_time = 32;                  // .1.1.2.1.32 phaseAdvWarnGrnStartTime (0-128 tenth seconds)
+  uint32 adv_warn_red_start_time = 33;                  // .1.1.2.1.33 phaseAdvWarnRedStartTime (0-255 tenth seconds)
+  uint32 alt_min_time_transition = 34;                  // .1.1.2.1.34 phaseAltMinTimeTransition (0-255 SECONDS; 0 = unused)
+}
+
+enum PhaseStartup {
+  PHASE_STARTUP_UNSPECIFIED = 0;
+  PHASE_STARTUP_NOSTART = 1;           // Phase does not start on startup
+  PHASE_STARTUP_GREEN_WALK = 2;        // Phase starts in green/walk
+  PHASE_STARTUP_GREEN_NO_WALK = 3;     // Phase starts in green, no ped
+  PHASE_STARTUP_YELLOW_CHANGE = 4;     // Phase starts in yellow
+  PHASE_STARTUP_RED_CLEAR = 5;         // Phase starts in red clearance
+}
+
+// phaseOptions bitfield (NTCIP 1202 v03A §5.2.2.21).
+// Underlying type is INTEGER (0..65535); bit 0 = LSB.
+message PhaseOptions {
+  bool enabled_phase = 1;                 // Bit 0:  Enabled Phase (0=disabled — same effect as phaseRing=0)
+  bool auto_flash_entry_phase = 2;        // Bit 1:  Automatic Flash Entry Phase
+  bool auto_flash_exit_phase = 3;         // Bit 2:  Automatic Flash Exit Phase
+  bool non_actuated_1 = 4;                // Bit 3:  Non-Actuated 1 (responds to Call To Non-Actuated 1)
+  bool non_actuated_2 = 5;                // Bit 4:  Non-Actuated 2 (responds to Call To Non-Actuated 2)
+  bool non_lock_detector_memory = 6;      // Bit 5:  Non Lock Detector Memory (0=lock at yellow; 1=use detectorOptions)
+  bool min_vehicle_recall = 7;            // Bit 6:  Minimum Vehicle Recall
+  bool max_vehicle_recall = 8;            // Bit 7:  Maximum Vehicle Recall
+  bool ped_recall = 9;                    // Bit 8:  Pedestrian Recall
+  bool soft_vehicle_recall = 10;          // Bit 9:  Soft Vehicle Recall
+  bool dual_entry_phase = 11;             // Bit 10: Dual Entry Phase
+  bool simultaneous_gap_disable = 12;     // Bit 11: Simultaneous Gap Disable
+  bool guaranteed_passage = 13;           // Bit 12: Guaranteed Passage
+  bool actuated_rest_in_walk = 14;        // Bit 13: Actuated Rest In Walk
+  bool conditional_service_enable = 15;   // Bit 14: Conditional Service Enable
+  bool added_initial_calculation = 16;    // Bit 15: AddedInitialCalculation (1=use largest count; 0=sum counts)
+}
+
+// Complete phase table — wraps all phase entries.
+message PhaseTable {
+  uint32 max_phases = 1;               // .1.1.1.0 maxPhases (read-only)
+  repeated PhaseEntry phases = 2;
+}
+
+// Phase status group — read-only bitmask registers (8 phases per row).
+// OID: .1.1.4.1.{column}.{group}  (NTCIP 1202 v03A §5.2.4)
+// Each register's bit N corresponds to phase = (group_number * 8) - (7 - N).
+message PhaseStatusGroup {
+  uint32 group_number = 1;             // .1.1.4.1.1  phaseStatusGroupNumber (1..maxPhaseGroups)
+  uint32 reds = 2;                     // .1.1.4.1.2  phaseStatusGroupReds
+  uint32 yellows = 3;                  // .1.1.4.1.3  phaseStatusGroupYellows
+  uint32 greens = 4;                   // .1.1.4.1.4  phaseStatusGroupGreens
+  uint32 dont_walks = 5;               // .1.1.4.1.5  phaseStatusGroupDontWalks
+  uint32 ped_clears = 6;               // .1.1.4.1.6  phaseStatusGroupPedClears
+  uint32 walks = 7;                    // .1.1.4.1.7  phaseStatusGroupWalks
+  uint32 veh_calls = 8;                // .1.1.4.1.8  phaseStatusGroupVehCalls
+  uint32 ped_calls = 9;                // .1.1.4.1.9  phaseStatusGroupPedCalls
+  uint32 phase_ons = 10;               // .1.1.4.1.10 phaseStatusGroupPhaseOns
+  uint32 phase_nexts = 11;             // .1.1.4.1.11 phaseStatusGroupPhaseNexts
+}
+
+// Phase control group — read-write bitmask registers (8 phases per row).
+// OID: .1.1.5.1.{column}.{group}  (NTCIP 1202 v03A §5.2.5)
+// Each bitmask is reset to 0 in BACKUP mode; a write resets the unitBackupTime timer.
+message PhaseControlGroup {
+  uint32 group_number = 1;             // .1.1.5.1.1  phaseControlGroupNumber
+  uint32 phase_omit = 2;               // .1.1.5.1.2  phaseControlGroupPhaseOmit
+  uint32 ped_omit = 3;                 // .1.1.5.1.3  phaseControlGroupPedOmit
+  uint32 hold = 4;                     // .1.1.5.1.4  phaseControlGroupHold
+  uint32 force_off = 5;                // .1.1.5.1.5  phaseControlGroupForceOff
+  uint32 veh_call = 6;                 // .1.1.5.1.6  phaseControlGroupVehCall
+  uint32 ped_call = 7;                 // .1.1.5.1.7  phaseControlGroupPedCall
+}
+
+
+// ============================================================
+// 2. DETECTOR GROUP — OID .1.3.6.1.4.1.1206.4.2.1.2
+// ============================================================
+
+// Vehicle detector parameter table — one entry per detector (up to 255 in v03).
+// OID: .1.2.2.1.{column}.{detector}
+// Per NTCIP 1202 v03A §5.3.2 (vehicleDetectorTable / vehicleDetectorEntry).
+// Spec column 3 is intentionally unused — proto field numbers are sequential
+// but the OID column comments reflect the spec.
+message DetectorEntry {
+  uint32 detector_number = 1;           // .1.2.2.1.1  vehicleDetectorNumber (1-255)
+  DetectorOptions options = 2;          // .1.2.2.1.2  vehicleDetectorOptions (bitfield)
+  // (spec column .1.2.2.1.3 is reserved/unused)
+  uint32 call_phase = 4;                // .1.2.2.1.4  vehicleDetectorCallPhase (0-255; 0 disables)
+  uint32 switch_phase = 5;              // .1.2.2.1.5  vehicleDetectorSwitchPhase (0-255)
+  uint32 delay = 6;                     // .1.2.2.1.6  vehicleDetectorDelay (0-2550 tenth seconds; spec syntax 0-65535 with valid 0-2550)
+  uint32 extend = 7;                    // .1.2.2.1.7  vehicleDetectorExtend (0-255 tenth seconds)
+  uint32 queue_limit = 8;               // .1.2.2.1.8  vehicleDetectorQueueLimit (0-255 SECONDS)
+
+  // === Fault Thresholds ===
+  uint32 no_activity = 9;               // .1.2.2.1.9  vehicleDetectorNoActivity (0-255 minutes)
+  uint32 max_presence = 10;             // .1.2.2.1.10 vehicleDetectorMaxPresence (0-255 minutes)
+  uint32 erratic_counts = 11;           // .1.2.2.1.11 vehicleDetectorErraticCounts (0-255 counts/minute)
+  uint32 fail_time = 12;                // .1.2.2.1.12 vehicleDetectorFailTime (0-255 SECONDS; 255 = constant call, 0 = no recall)
+
+  // === Status (read-only) ===
+  uint32 alarms = 13;                   // .1.2.2.1.13 vehicleDetectorAlarms (bitmask: bit0=NoActivity, bit1=MaxPresence, bit2=Erratic, bit3=Comms, bit4=Config, bit7=Other)
+  uint32 reported_alarms = 14;          // .1.2.2.1.14 vehicleDetectorReportedAlarms (bitmask: bit0=Other, bit1=Watchdog, bit2=OpenLoop, bit3=ShortedLoop, bit4=ExcessiveChange)
+
+  // === Control ===
+  uint32 reset = 15;                    // .1.2.2.1.15 vehicleDetectorReset (0/1; auto-reverts to 0)
+
+  // === v03 Extensions: Speed/Pairing ===
+  uint32 options2 = 16;                 // .1.2.2.1.16 vehicleDetectorOptions2 (bitmask: bit0=Speed enable, bit1=Lead/Trail, bit2=NTCIP/Custom speed mode)
+  uint32 paired_detector = 17;          // .1.2.2.1.17 vehicleDetectorPairedDetector (0-255; 0 = none)
+  uint32 paired_detector_spacing = 18;  // .1.2.2.1.18 vehicleDetectorPairedDetectorSpacing (0-65535 hundredths of a meter)
+  uint32 avg_vehicle_length = 19;       // .1.2.2.1.19 vehicleDetectorAvgVehicleLength (1-4000 hundredths of a meter)
+  uint32 length = 20;                   // .1.2.2.1.20 vehicleDetectorLength (1-4000 hundredths of a meter; 65535 = no length set)
+  DetectorTravelMode travel_mode = 21;  // .1.2.2.1.21 vehicleDetectorTravelMode
+}
+
+// vehicleDetectorOptions bitfield (NTCIP 1202 v03A §5.3.2.2).
+// INTEGER (0..255); bit 0 = LSB.
+// Note: spec rule "set of both bits 2 & 3 = 1 results in bit 2=1, bit 3=0".
+message DetectorOptions {
+  bool volume_detector = 1;            // Bit 0: Volume Detector (collect volume data)
+  bool occupancy_detector = 2;         // Bit 1: Occupancy Detector (collect occupancy data)
+  bool yellow_lock_call = 3;           // Bit 2: Yellow Lock Call (lock call when not green)
+  bool red_lock_call = 4;              // Bit 3: Red Lock Call (lock call when not green/yellow)
+  bool passage = 5;                    // Bit 4: Passage (reset phase passage timer while detector active in green)
+  bool added_initial = 6;              // Bit 5: AddedInitial (count actuations during yellow/red for initial calc)
+  bool queue = 7;                      // Bit 6: Queue (extend green per vehicleDetectorQueueLimit)
+  bool call = 8;                       // Bit 7: Call (place demand on assigned phase)
+}
+
+// vehicleDetectorTravelMode (NTCIP 1202 v03A §5.3.2.20).
+enum DetectorTravelMode {
+  DETECTOR_TRAVEL_MODE_UNSPECIFIED = 0;
+  DETECTOR_TRAVEL_OTHER = 1;
+  DETECTOR_TRAVEL_VEHICLE = 2;         // Default
+  DETECTOR_TRAVEL_TRANSIT = 3;
+  DETECTOR_TRAVEL_BICYCLE = 4;
+}
+
+// Complete detector table.
+message DetectorTable {
+  uint32 max_detectors = 1;            // .1.2.1.0 maxVehicleDetectors (read-only)
+  repeated DetectorEntry detectors = 2;
+}
+
+// Vehicle detector status group — read-only bitmask registers (8 detectors per row).
+// OID: .1.2.4.1.{column}.{group}  (NTCIP 1202 v03A §5.3.4)
+// Each bitmask's bit N corresponds to detector = (group_number * 8) - (7 - N).
+message DetectorStatusGroup {
+  uint32 group_number = 1;             // .1.2.4.1.1 vehicleDetectorStatusGroupNumber
+  uint32 active = 2;                   // .1.2.4.1.2 vehicleDetectorStatusGroupActive (1=on/detect, 0=off)
+  uint32 alarms = 3;                   // .1.2.4.1.3 vehicleDetectorStatusGroupAlarms (1=any alarm bit set)
+}
+
+
+// ============================================================
+// 3. UNIT GROUP — OID .1.3.6.1.4.1.1206.4.2.1.3
+// ============================================================
+
+// Unit-level parameters — global controller settings (selected scalars).
+// OID: .1.3.{column}  (NTCIP 1202 v03A §5.4).
+// This is a curated subset of the unit group; the spec defines many more
+// objects (asc.3.x) including specialFunctionOutputTable (.3.14), MCE
+// timers (.3.15-.3.16), block objects (.3.17+), and unit alarm status 2/4.
+message UnitParams {
+  uint32 startup_flash = 1;             // .1.3.1  unitStartUpFlash (0-255 seconds)
+  UnitAutoPedClear auto_ped_clear = 2;  // .1.3.2  unitAutoPedestrianClear (1=disable, 2=enable)
+  uint32 backup_time = 3;               // .1.3.3  unitBackupTime (0-65535 seconds; 0 disables)
+  uint32 red_revert = 4;                // .1.3.4  unitRedRevert (0-255 tenth seconds)
+  UnitControlMode control_status = 5;   // .1.3.5  unitControlStatus (read-only)
+  UnitFlashStatus flash_status = 6;     // .1.3.6  unitFlashStatus (read-only enum)
+  uint32 alarm_status_2 = 7;            // .1.3.7  unitAlarmStatus2 (read-only bitmask)
+  uint32 alarm_status_1 = 8;            // .1.3.8  unitAlarmStatus1 (read-only bitmask, see UnitAlarmStatus)
+  uint32 short_alarm_status = 9;        // .1.3.9  shortAlarmStatus (read-only bitmask)
+  uint32 unit_control = 10;             // .1.3.10 unitControl (read-write bitmask)
+}
+
+// unitAutoPedestrianClear (NTCIP 1202 v03A §5.4.2).
+enum UnitAutoPedClear {
+  UNIT_AUTO_PED_CLEAR_UNSPECIFIED = 0;
+  UNIT_AUTO_PED_CLEAR_DISABLE = 1;
+  UNIT_AUTO_PED_CLEAR_ENABLE = 2;
+}
+
+// unitControlStatus (NTCIP 1202 v03A §5.4.5).
+enum UnitControlMode {
+  UNIT_CONTROL_MODE_UNSPECIFIED = 0;
+  UNIT_OTHER = 1;
+  UNIT_SYSTEM_CONTROL = 2;              // Master/central commands
+  UNIT_SYSTEM_STANDBY = 3;              // Local based on master/central using local control
+  UNIT_BACKUP_MODE = 4;                 // Backup mode
+  UNIT_MANUAL = 5;                      // Entry other than 0 in coordOperationalMode
+  UNIT_TIMEBASE = 6;                    // Local time base
+  UNIT_INTERCONNECT = 7;                // Local interconnect inputs
+  UNIT_INTERCONNECT_BACKUP = 8;         // Local TBC due to invalid interconnect or sync loss
+  UNIT_REMOTE_MANUAL_CONTROL = 9;       // Central command via remote MCE
+  UNIT_LOCAL_MANUAL_CONTROL = 10;       // MCE + Interval Advance inputs (police panel)
+}
+
+// unitFlashStatus (NTCIP 1202 v03A §5.4.6).
+enum UnitFlashStatus {
+  UNIT_FLASH_STATUS_UNSPECIFIED = 0;
+  UNIT_FLASH_OTHER = 1;
+  UNIT_FLASH_NOT_FLASH = 2;
+  UNIT_FLASH_AUTOMATIC = 3;
+  UNIT_FLASH_LOCAL_MANUAL = 4;
+  UNIT_FLASH_FAULT_MONITOR = 5;
+  UNIT_FLASH_MMU = 6;
+  UNIT_FLASH_STARTUP = 7;
+  UNIT_FLASH_PREEMPT = 8;
+}
+
+// unitAlarmStatus1 bit definitions (NTCIP 1202 v03A §5.4.8) at OID .1.3.8.
+// Underlying type is INTEGER (0..255); decode the integer in `UnitParams.alarm_status_1`.
+message UnitAlarmStatus {
+  bool cycle_fault = 1;                 // Bit 0: Cycle Fault
+  bool coord_fault = 2;                 // Bit 1: Coord Fault
+  bool coord_fail = 3;                  // Bit 2: Coord Fail
+  bool cycle_fail = 4;                  // Bit 3: Cycle Fail
+  bool mmu_flash = 5;                   // Bit 4: MMU Flash
+  bool local_flash = 6;                 // Bit 5: Local Flash
+  bool local_free = 7;                  // Bit 6: Local Free
+  bool coord_active = 8;                // Bit 7: Coord Active
+}
+
+
+// ============================================================
+// 4. COORDINATION GROUP — OID .1.3.6.1.4.1.1206.4.2.1.4
+// ============================================================
+
+// Coordination pattern table — one entry per pattern.
+// OID: .1.4.7.1.{column}.{pattern}  (NTCIP 1202 v03A §5.5.7)
+message CoordPatternEntry {
+  uint32 pattern_number = 1;             // .1.4.7.1.1 patternNumber (1-253)
+  uint32 cycle_time = 2;                 // .1.4.7.1.2 patternCycleTime (0-255 seconds)
+  uint32 offset_time = 3;                // .1.4.7.1.3 patternOffsetTime (0-255 seconds)
+  uint32 split_number = 4;               // .1.4.7.1.4 patternSplitNumber (1-255; row in splitTable)
+  uint32 sequence_number = 5;            // .1.4.7.1.5 patternSequenceNumber (1-255; row in sequenceTable)
+  PatternCoordSyncPoint sync_point = 6;  // .1.4.7.1.6 patternCoordSyncPoint
+  PatternMaxMode max_mode = 7;           // .1.4.7.1.7 patternOptions (selects maximum mode for this pattern)
+  bytes spat_enabled_lanes = 8;          // .1.4.7.1.8 patternSpatEnabledLanes (OCTET STRING; each octet = mapLaneIndex)
+}
+
+// patternCoordSyncPoint (NTCIP 1202 v03A §5.5.7.6).
+enum PatternCoordSyncPoint {
+  PATTERN_COORD_SYNC_POINT_UNSPECIFIED = 0;
+  PATTERN_SYNC_OTHER = 1;
+  PATTERN_SYNC_UNIT_COORD_SYNC_POINT = 2;
+  PATTERN_SYNC_FIRST_COORD_PHS_GRN_BEGIN = 3;
+  PATTERN_SYNC_LAST_COORD_PHS_GRN_BEGIN = 4;
+  PATTERN_SYNC_FIRST_COORD_PHS_GRN_END = 5;
+  PATTERN_SYNC_LAST_COORD_PHS_GRN_END = 6;
+  PATTERN_SYNC_FIRST_COORD_PHS_YEL_END = 7;
+  PATTERN_SYNC_LAST_COORD_PHS_YEL_END = 8;
+}
+
+// patternOptions (NTCIP 1202 v03A §5.5.7.7) — selects maximum mode for the pattern.
+enum PatternMaxMode {
+  PATTERN_MAX_MODE_UNSPECIFIED = 0;
+  PATTERN_MAX_OTHER = 1;
+  PATTERN_MAX_COORD_MAXIMUM_MODE = 2;
+  PATTERN_MAX_INHIBIT = 3;
+  PATTERN_MAX_MAXIMUM_1 = 4;
+  PATTERN_MAX_MAXIMUM_2 = 5;
+  PATTERN_MAX_MAXIMUM_3 = 6;
+}
+
+// Coordination split table — one entry per (split-number, phase).
+// OID: .1.4.9.1.{column}.{splitNumber}.{splitPhase}  (NTCIP 1202 v03A §5.5.9)
+message CoordSplitEntry {
+  uint32 split_number = 1;              // .1.4.9.1.1 splitNumber (1-255)
+  uint32 split_phase = 2;               // .1.4.9.1.2 splitPhase (1-255)
+  uint32 split_time = 3;                // .1.4.9.1.3 splitTime (0-255 seconds)
+  CoordSplitMode split_mode = 4;        // .1.4.9.1.4 splitMode
+  bool split_coord_phase = 5;           // .1.4.9.1.5 splitCoordPhase (true = coordinated phase)
+  uint32 split_options = 6;             // .1.4.9.1.6 splitOptions (bitmask; bit 0 = TransitionPhaseOmit)
+}
+
+// splitMode (NTCIP 1202 v03A §5.5.9.4).
+enum CoordSplitMode {
+  COORD_SPLIT_MODE_UNSPECIFIED = 0;
+  COORD_SPLIT_OTHER = 1;
+  COORD_SPLIT_NONE = 2;
+  COORD_SPLIT_MIN_VEHICLE_RECALL = 3;
+  COORD_SPLIT_MAX_VEHICLE_RECALL = 4;
+  COORD_SPLIT_PED_RECALL = 5;
+  COORD_SPLIT_MAX_VEHICLE_AND_PED_RECALL = 6;
+  COORD_SPLIT_PHASE_OMITTED = 7;
+  COORD_SPLIT_NON_ACTUATED = 8;
+}
+
+// Complete coordination table — wraps pattern + split tables.
+message CoordTable {
+  uint32 max_patterns = 1;              // .1.4.5 maxPatterns (read-only, 1-253)
+  uint32 max_splits = 2;                // .1.4.8 maxSplits (read-only)
+  repeated CoordPatternEntry patterns = 3;
+  repeated CoordSplitEntry splits = 4;
+}
+
+// Coordination scalar status / control objects under the coord node.
+// These are individual OIDs (.1.4.X), not a table. Grouped here for transport.
+message CoordStatus {
+  uint32 operational_mode = 1;          // .1.4.1   coordOperationalMode (0=auto, 1-253=manual pattern, 254=manual free, 255=manual flash)
+  CoordCorrectionMode correction_mode = 2; // .1.4.2 coordCorrectionMode
+  CoordMaxMode max_mode = 3;            // .1.4.3   coordMaximumMode
+  CoordForceMode force_mode = 4;        // .1.4.4   coordForceMode
+  uint32 pattern_status = 5;            // .1.4.10  coordPatternStatus (currently running pattern; 254=Free, 255=Flash)
+  CoordLocalFreeStatus local_free_status = 6;  // .1.4.11 localFreeStatus
+  uint32 cycle_status = 7;              // .1.4.12  coordCycleStatus (0-510 seconds, current cycle position)
+  uint32 sync_status = 8;               // .1.4.13  coordSyncStatus (0-510 seconds since system reference point)
+  uint32 system_pattern_control = 9;    // .1.4.14  systemPatternControl (system-commanded pattern; 0=standby, 254=Free, 255=Flash)
+}
+
+// coordCorrectionMode (NTCIP 1202 v03A §5.5.2).
+enum CoordCorrectionMode {
+  COORD_CORRECTION_MODE_UNSPECIFIED = 0;
+  COORD_CORRECTION_OTHER = 1;
+  COORD_CORRECTION_DWELL = 2;
+  COORD_CORRECTION_SHORTWAY = 3;
+  COORD_CORRECTION_ADD_ONLY = 4;
+  COORD_CORRECTION_SUBTRACT_ONLY = 5;
+}
+
+// coordMaximumMode (NTCIP 1202 v03A §5.5.3).
+enum CoordMaxMode {
+  COORD_MAX_MODE_UNSPECIFIED = 0;
+  COORD_MAX_OTHER = 1;
+  COORD_MAX_MAXIMUM_1 = 2;
+  COORD_MAX_MAXIMUM_2 = 3;
+  COORD_MAX_INHIBIT = 4;
+  COORD_MAX_MAXIMUM_3 = 5;
+}
+
+// coordForceMode (NTCIP 1202 v03A §5.5.4).
+enum CoordForceMode {
+  COORD_FORCE_MODE_UNSPECIFIED = 0;
+  COORD_FORCE_OTHER = 1;
+  COORD_FORCE_FLOATING = 2;
+  COORD_FORCE_FIXED = 3;
+}
+
+// localFreeStatus (NTCIP 1202 v03A §5.5.11).
+// Replaces the old, fictional "CoordFreeMode" enum.
+enum CoordLocalFreeStatus {
+  COORD_LOCAL_FREE_STATUS_UNSPECIFIED = 0;
+  COORD_LOCAL_FREE_OTHER = 1;
+  COORD_LOCAL_FREE_NOT_FREE = 2;
+  COORD_LOCAL_FREE_COMMAND_FREE = 3;
+  COORD_LOCAL_FREE_TRANSITION_FREE = 4;
+  COORD_LOCAL_FREE_INPUT_FREE = 5;
+  COORD_LOCAL_FREE_COORD_FREE = 6;
+  COORD_LOCAL_FREE_BAD_PLAN = 7;
+  COORD_LOCAL_FREE_BAD_CYCLE_TIME = 8;
+  COORD_LOCAL_FREE_SPLIT_OVERRUN = 9;
+  COORD_LOCAL_FREE_INVALID_OFFSET = 10;
+  COORD_LOCAL_FREE_FAILED = 11;
+}
+
+
+// ============================================================
+// 5. TIMEBASE GROUP — OID .1.3.6.1.4.1.1206.4.2.1.5
+//
+// NTCIP 1202 v03A §5.6 defines the ASC-specific Time Base action
+// table (timebaseAscActionTable at .5.3). Day-plan and schedule
+// tables are inherited from the global NTCIP 1201 (Global Object
+// Definitions) MIB and are NOT redefined under .5.x here. Producers
+// that need the day-plan/schedule structure should reference
+// NTCIP 1201 directly.
+// ============================================================
+
+// ASC Time Base action table — maps action numbers to patterns +
+// auxiliary functions + special functions.
+// OID: .1.5.3.1.{column}.{action}  (NTCIP 1202 v03A §5.6.3)
+message TimebaseActionEntry {
+  uint32 action_number = 1;           // .1.5.3.1.1 timebaseAscActionNumber (1-255)
+  uint32 pattern = 2;                 // .1.5.3.1.2 timebaseAscPattern (0-255; 0 relinquishes to lower priority)
+  uint32 auxiliary_function = 3;      // .1.5.3.1.3 timebaseAscAuxiliaryFunction (bitmask)
+  uint32 special_function = 4;        // .1.5.3.1.4 timebaseAscSpecialFunction (bitmask, v03)
+}
+
+// Complete ASC timebase action table.
+// OID: .1.5.2 maxTimebaseAscActions; .1.5.3 timebaseAscActionTable
+message TimebaseTable {
+  uint32 max_actions = 1;             // .1.5.2 maxTimebaseAscActions (read-only)
+  repeated TimebaseActionEntry actions = 2;
+}
+
+// Timebase status (composed from current-action / day-plan / schedule
+// objects defined in NTCIP 1201; included here for transport convenience).
+message TimebaseStatus {
+  uint32 current_action = 1;          // Currently active action number
+  uint32 current_day_plan = 2;        // Currently active day plan
+  uint32 current_schedule = 3;        // Currently active schedule
+}
+
+
+// ============================================================
+// 6. PREEMPT GROUP — OID .1.3.6.1.4.1.1206.4.2.1.6
+// ============================================================
+
+// Preemption parameter table — one entry per preempt.
+// OID: .1.6.2.1.{column}.{preempt}  (NTCIP 1202 v03A §5.7.2)
+message PreemptEntry {
+  uint32 preempt_number = 1;            // .1.6.2.1.1  preemptNumber (1-255)
+  uint32 control = 2;                   // .1.6.2.1.2  preemptControl (bitmask, see PreemptControlBits)
+  uint32 link = 3;                      // .1.6.2.1.3  preemptLink (linked preempt #, 0=none)
+
+  // === Timing (all in SECONDS unless noted) ===
+  uint32 delay = 4;                     // .1.6.2.1.4  preemptDelay (0-65535 SECONDS; spec range 0-600)
+  uint32 minimum_duration = 5;          // .1.6.2.1.5  preemptMinimumDuration (0-65535 SECONDS)
+  uint32 minimum_green = 6;             // .1.6.2.1.6  preemptMinimumGreen (0-255 SECONDS)
+  uint32 minimum_walk = 7;              // .1.6.2.1.7  preemptMinimumWalk (0-255 SECONDS)
+  uint32 enter_ped_clear = 8;           // .1.6.2.1.8  preemptEnterPedClear (0-255 SECONDS)
+  uint32 track_green = 9;               // .1.6.2.1.9  preemptTrackGreen (0-255 SECONDS; track-clearance green time)
+  uint32 dwell_green = 10;              // .1.6.2.1.10 preemptDwellGreen (1-255 SECONDS; minimum dwell interval)
+  uint32 maximum_presence = 11;         // .1.6.2.1.11 preemptMaximumPresence (0-65535 SECONDS; 0 disables)
+
+  // === Phase Lists (OCTET STRING; each octet = phase number) ===
+  bytes track_phase = 12;               // .1.6.2.1.12 preemptTrackPhase (phases active during track clear)
+  bytes dwell_phase = 13;               // .1.6.2.1.13 preemptDwellPhase (phases served during dwell)
+  bytes dwell_ped = 14;                 // .1.6.2.1.14 preemptDwellPed (peds served during dwell)
+  bytes exit_phase = 15;                // .1.6.2.1.15 preemptExitPhase (phases following preempt)
+
+  // === Read-only state ===
+  PreemptCurrentState state = 16;       // .1.6.2.1.16 preemptState (read-only enum)
+
+  // === Overlap Lists (OCTET STRING; each octet = overlap number) ===
+  bytes track_overlap = 17;             // .1.6.2.1.17 preemptTrackOverlap
+  bytes dwell_overlap = 18;             // .1.6.2.1.18 preemptDwellOverlap
+
+  // === Cycling Lists ===
+  bytes cycling_phase = 19;             // .1.6.2.1.19 preemptCyclingPhase
+  bytes cycling_ped = 20;               // .1.6.2.1.20 preemptCyclingPed
+  bytes cycling_overlap = 21;           // .1.6.2.1.21 preemptCyclingOverlap
+
+  // === v03 Entry/Track Yellow & Red Clear Times (tenth seconds) ===
+  uint32 enter_yellow_change = 22;      // .1.6.2.1.22 preemptEnterYellowChange (tenth seconds)
+  uint32 enter_red_clear = 23;          // .1.6.2.1.23 preemptEnterRedClear (tenth seconds)
+  uint32 track_yellow_change = 24;      // .1.6.2.1.24 preemptTrackYellowChange (tenth seconds)
+  uint32 track_red_clear = 25;          // .1.6.2.1.25 preemptTrackRedClear (tenth seconds)
+
+  // === v03 Sequence/Exit ===
+  uint32 sequence_number = 26;          // .1.6.2.1.26 preemptSequenceNumber
+  uint32 exit_type = 27;                // .1.6.2.1.27 preemptExitType
+}
+
+// preemptControl bit definitions (NTCIP 1202 v03A §5.7.2.2).
+// Underlying type is INTEGER (0..255); decode `PreemptEntry.control`.
+message PreemptControlBits {
+  bool non_locking_memory = 1;          // Bit 0: Non-Locking Memory
+  bool override_flash = 2;              // Bit 1: Preempt Override Flash
+  bool override_next_preempt = 3;       // Bit 2: Preempt Override preemptNumber + 1
+  bool flash_dwell = 4;                 // Bit 3: Flash Dwell
+  bool preempt_enable = 5;              // Bit 4: Preempt Enable (v03)
+  bool all_red_flash = 6;               // Bit 5: All Red Flash (v03)
+}
+
+// Complete preempt table.
+message PreemptTable {
+  uint32 max_preempts = 1;            // .1.6.1.0 maxPreempts (read-only)
+  repeated PreemptEntry preempts = 2;
+}
+
+// Preempt status — composed from PreemptEntry.state values per preempt.
+// (NTCIP 1202 v03A does not expose preempt status as a separate group;
+// state is the read-only `preemptState` column .16 of preemptEntry.)
+message PreemptStatus {
+  repeated PreemptStateDetail details = 1;
+}
+
+message PreemptStateDetail {
+  uint32 preempt_number = 1;
+  PreemptCurrentState current_state = 2;
+}
+
+// preemptState (NTCIP 1202 v03A §5.7.2.16).
+enum PreemptCurrentState {
+  PREEMPT_STATE_UNSPECIFIED = 0;
+  PREEMPT_STATE_OTHER = 1;
+  PREEMPT_STATE_NOT_ACTIVE = 2;            // Preempt input not active
+  PREEMPT_STATE_NOT_ACTIVE_WITH_CALL = 3;  // Input active, service not started
+  PREEMPT_STATE_ENTRY_STARTED = 4;         // Timing entry intervals
+  PREEMPT_STATE_TRACK_SERVICE = 5;         // Timing track intervals
+  PREEMPT_STATE_DWELL = 6;                 // Timing dwell intervals
+  PREEMPT_STATE_LINK_ACTIVE = 7;           // Performing linked operation
+  PREEMPT_STATE_EXIT_STARTED = 8;          // Timing exit intervals
+  PREEMPT_STATE_MAX_PRESENCE = 9;          // Max presence exceeded
+  PREEMPT_STATE_ADVANCED_PREEMPT = 10;     // Timing advanced preemption
+}
+
+
+// ============================================================
+// 7. RING GROUP — OID .1.3.6.1.4.1.1206.4.2.1.7
+// ============================================================
+
+// Ring control group — bitmask registers (read-write).
+// OID: .1.7.5.1.{column}.{group}  (NTCIP 1202 v03A §5.8.5)
+// Each register is a bitmask where bits map to rings within the group of 8.
+message RingControlGroup {
+  uint32 group_number = 1;            // .1.7.5.1.1 ringControlGroupNumber (1..maxRingControlGroups)
+  uint32 stop_time = 2;               // .1.7.5.1.2 ringControlGroupStopTime
+  uint32 force_off = 3;               // .1.7.5.1.3 ringControlGroupForceOff
+  uint32 max_2 = 4;                   // .1.7.5.1.4 ringControlGroupMax2
+  uint32 max_inhibit = 5;             // .1.7.5.1.5 ringControlGroupMaxInhibit
+  uint32 ped_recycle = 6;             // .1.7.5.1.6 ringControlGroupPedRecycle (v03)
+  uint32 red_rest = 7;                // .1.7.5.1.7 ringControlGroupRedRest (v03)
+  uint32 omit_red_clear = 8;          // .1.7.5.1.8 ringControlGroupOmitRedClear (v03)
+  uint32 max_3 = 9;                   // .1.7.5.1.9 ringControlGroupMax3 (v03)
+}
+
+// Sequence table — defines phase order within each ring.
+// OID: .1.7.4.1.{column}.{ring}.{sequence}
+message SequenceEntry {
+  uint32 ring_number = 1;             // .1.7.4.1.1  sequenceRingNumber (1-4)
+  uint32 sequence_number = 2;         // .1.7.4.1.2  sequenceNumber
+  // Phase sequence data (ordered list of phases in this ring/sequence)
+  repeated uint32 phases = 3;         // .1.7.4.1.3  sequenceData (phase order)
+}
+
+// Complete ring configuration.
+message RingTable {
+  uint32 max_rings = 1;               // .1.7.1.0 maxRings (read-only)
+  uint32 max_sequences = 2;           // .1.7.3.0 maxSequences (read-only)
+  RingControlGroup control = 3;
+  repeated SequenceEntry sequences = 4;
+}
+
+// Barrier table (v03) — defines barrier boundaries.
+message BarrierEntry {
+  uint32 barrier_number = 1;          // Barrier index (1-4)
+  uint32 phases = 2;                   // Bitmask of phases in this barrier group
+}
+
+// Ring-barrier structure.
+message RingBarrierConfig {
+  uint32 num_rings = 1;
+  uint32 num_barriers = 2;
+  repeated BarrierEntry barriers = 3;
+  repeated SequenceEntry sequences = 4;
+}
+
+
+// ============================================================
+// 8. CHANNEL GROUP — OID .1.3.6.1.4.1.1206.4.2.1.8
+// ============================================================
+
+// Channel (output) parameter table — one entry per channel.
+// OID: .1.8.2.1.{column}.{channel}  (NTCIP 1202 v03A §5.9.2)
+message ChannelEntry {
+  uint32 channel_number = 1;          // .1.8.2.1.1 channelNumber (1-255)
+  uint32 control_source = 2;          // .1.8.2.1.2 channelControlSource (0=no control; phase or overlap # per control_type)
+  ChannelControlType control_type = 3; // .1.8.2.1.3 channelControlType
+  uint32 flash = 4;                    // .1.8.2.1.4 channelFlash (bitmask: bit1=FlashYellow, bit2=FlashRed, bit3=FlashAlternateHalfHertz)
+  uint32 dim = 5;                      // .1.8.2.1.5 channelDim (bitmask, dimming control)
+  ChannelGreenType green_type = 6;    // .1.8.2.1.6 channelGreenType (none/protected/permissive/flashYellowArrow/flashRedArrow)
+  bytes green_included = 7;           // .1.8.2.1.7 channelGreenIncluded (OCTET STRING; conflicting/opposing channels)
+  uint32 intersection_id = 8;         // .1.8.2.1.8 channelIntersectionId (J2735 cross-reference)
+}
+
+// channelControlType (NTCIP 1202 v03A §5.9.2.3).
+enum ChannelControlType {
+  CHANNEL_CONTROL_TYPE_UNSPECIFIED = 0;
+  CHANNEL_OTHER = 1;
+  CHANNEL_PHASE_VEHICLE = 2;          // Vehicle (incl. bicycle/transit) phase display
+  CHANNEL_PHASE_PEDESTRIAN = 3;       // Pedestrian phase display
+  CHANNEL_OVERLAP = 4;                // Overlap display (FYA, FRA, etc.)
+  CHANNEL_PED_OVERLAP = 5;            // Pedestrian overlap display
+  CHANNEL_QUEUE_JUMP = 6;             // Queue jump display (TSP)
+}
+
+// channelGreenType (NTCIP 1202 v03A §5.9.2.6).
+enum ChannelGreenType {
+  CHANNEL_GREEN_TYPE_UNSPECIFIED = 0;
+  CHANNEL_GREEN_NONE = 1;
+  CHANNEL_GREEN_PROTECTED = 2;
+  CHANNEL_GREEN_PERMISSIVE = 3;
+  CHANNEL_GREEN_FLASH_YELLOW_ARROW = 4;
+  CHANNEL_GREEN_FLASH_RED = 5;
+}
+
+// Complete channel table.
+message ChannelTable {
+  uint32 max_channels = 1;            // .1.8.1.0 maxChannels (read-only)
+  repeated ChannelEntry channels = 2;
+}
+
+// Channel status group — read-only bitmask registers (8 channels per row).
+// OID: .1.8.4.1.{column}.{group}  (NTCIP 1202 v03A §5.9.4)
+message ChannelStatusGroup {
+  uint32 group_number = 1;             // .1.8.4.1.1 channelStatusGroupNumber
+  uint32 reds = 2;                     // .1.8.4.1.2 channelStatusGroupReds
+  uint32 yellows = 3;                  // .1.8.4.1.3 channelStatusGroupYellows
+  uint32 greens = 4;                   // .1.8.4.1.4 channelStatusGroupGreens
+}
+
+
+// ============================================================
+// 9. OVERLAP GROUP — OID .1.3.6.1.4.1.1206.4.2.1.9
+// ============================================================
+
+// Overlap parameter table — one entry per overlap (A=1, B=2, … per spec).
+// OID: .1.9.2.1.{column}.{overlap}  (NTCIP 1202 v03A §5.10.2)
+message OverlapEntry {
+  uint32 overlap_number = 1;          // .1.9.2.1.1  overlapNumber (1-255)
+  OverlapType type = 2;               // .1.9.2.1.2  overlapType
+  bytes included_phases = 3;          // .1.9.2.1.3  overlapIncludedPhases (OCTET STRING; each octet = phase #)
+  bytes modifier_phases = 4;          // .1.9.2.1.4  overlapModifierPhases (OCTET STRING; each octet = phase #)
+  uint32 trail_green = 5;             // .1.9.2.1.5  overlapTrailGreen (0-255 SECONDS)
+  uint32 trail_yellow = 6;            // .1.9.2.1.6  overlapTrailYellow (0-255 tenth seconds)
+  uint32 trail_red = 7;               // .1.9.2.1.7  overlapTrailRed (0-255 tenth seconds)
+  uint32 walk = 8;                    // .1.9.2.1.8  overlapWalk (0-255 SECONDS; pedestrian overlap)
+  uint32 ped_clearance = 9;           // .1.9.2.1.9  overlapPedClearance (0-255 SECONDS; pedestrian overlap)
+  bytes conflicting_ped_phases = 10;  // .1.9.2.1.10 overlapConflictingPedPhases (OCTET STRING)
+}
+
+// overlapType (NTCIP 1202 v03A §5.10.2.2).
+enum OverlapType {
+  OVERLAP_TYPE_UNSPECIFIED = 0;
+  OVERLAP_OTHER = 1;
+  OVERLAP_NORMAL = 2;
+  OVERLAP_MINUS_GREEN_YELLOW = 3;             // Minus overlap; modifier phase suppresses
+  OVERLAP_PEDESTRIAN_NORMAL = 4;              // Pedestrian overlap
+  OVERLAP_FYA_THREE_SECTION = 5;              // Flashing Yellow Arrow, 3-section
+  OVERLAP_FYA_FOUR_SECTION = 6;               // Flashing Yellow Arrow, 4-section
+  OVERLAP_FRA_THREE_SECTION = 7;              // Flashing Red Arrow, 3-section
+  OVERLAP_FRA_FOUR_SECTION = 8;               // Flashing Red Arrow, 4-section
+  OVERLAP_TRANSIT_2 = 9;                      // Transit-2 overlap
+  OVERLAP_MINUS_GREEN_YELLOW_ALTERNATE = 10;  // Alternate minus-green-yellow
+}
+
+// Complete overlap table.
+message OverlapTable {
+  uint32 max_overlaps = 1;            // .1.9.1 maxOverlaps (read-only)
+  repeated OverlapEntry overlaps = 2;
+}
+
+// Overlap status group — read-only bitmask registers (8 overlaps per row).
+// OID: .1.9.4.1.{column}.{group}  (NTCIP 1202 v03A §5.10.4)
+message OverlapStatusGroup {
+  uint32 group_number = 1;            // .1.9.4.1.1 overlapStatusGroupNumber
+  uint32 reds = 2;                    // .1.9.4.1.2 overlapStatusGroupReds
+  uint32 yellows = 3;                 // .1.9.4.1.3 overlapStatusGroupYellows
+  uint32 greens = 4;                  // .1.9.4.1.4 overlapStatusGroupGreens
+}
+
+
+// ============================================================
+// SPECIAL FUNCTION OUTPUT (subgroup of Unit group .3)
+// Per NTCIP 1202 v03A §5.4.14. Lives under Unit, NOT a separate
+// top-level .11 node.
+// ============================================================
+
+// Special function output table.
+// OID: .1.3.14.1.{column}.{function}
+message SpecialFunctionEntry {
+  uint32 output_number = 1;           // .1.3.14.1.1 specialFunctionOutputNumber (1-255)
+  uint32 output_state = 2;            // .1.3.14.1.2 specialFunctionOutputState (0/1; DEPRECATED — use output_control)
+  uint32 output_control = 3;          // .1.3.14.1.3 specialFunctionOutputControl (0=OFF, 1=ON; read-write)
+  uint32 output_status = 4;           // .1.3.14.1.4 specialFunctionOutputStatus (0=OFF, 1=ON; read-only)
+}
+
+// Special function table.
+// OID: maxSpecialFunctionOutputs at .1.3.13; specialFunctionOutputTable at .1.3.14
+message SpecialFunctionTable {
+  uint32 max_special_function_outputs = 1;  // .1.3.13 maxSpecialFunctionOutputs (read-only)
+  repeated SpecialFunctionEntry outputs = 2;
+}
+
+
+// ============================================================
+// PEDESTRIAN DETECTOR (subgroup of Detector group .2)
+// Per NTCIP 1202 v03A §5.3.6–§5.3.7. Note: pedestrian detector lives
+// under the Detector group (OID .1.2), NOT a separate top-level .13 node.
+// ============================================================
+
+// Pedestrian detector parameter table.
+// OID: .1.2.7.1.{column}.{detector}
+message PedestrianDetectorEntry {
+  uint32 detector_number = 1;         // .1.2.7.1.1 pedestrianDetectorNumber (1-255)
+  uint32 call_phase = 2;              // .1.2.7.1.2 pedestrianDetectorCallPhase (0-255; 0 disables)
+  uint32 no_activity = 3;             // .1.2.7.1.3 pedestrianDetectorNoActivity (0-255 minutes; 0 disables)
+  uint32 max_presence = 4;            // .1.2.7.1.4 pedestrianDetectorMaxPresence (0-255 minutes; 0 disables)
+  uint32 erratic_counts = 5;          // .1.2.7.1.5 pedestrianDetectorErraticCounts (0-255 counts/minute; 0 disables)
+  uint32 alarms = 6;                  // .1.2.7.1.6 pedestrianDetectorAlarms (read-only bitmask: bit0=NoActivity, bit1=MaxPresence, bit2=Erratic, bit3=Comms, bit4=Config, bit7=Other)
+  uint32 reset = 7;                   // .1.2.7.1.7 pedestrianDetectorReset (0/1; auto-reverts to 0)
+  uint32 button_push_time = 8;        // .1.2.7.1.8 pedestrianButtonPushTime (0-255 tenth seconds; 0 = APS features disabled)
+  uint32 options = 9;                 // .1.2.7.1.9 pedestrianDetectorOptions (bitmask: bit0=Presence, bit1=AlternateTiming, bit2=NonLocking)
+}
+
+// Pedestrian detector table.
+// OID: .1.2.6 maxPedestrianDetectors (read-only), .1.2.7 pedestrianDetectorTable
+message PedestrianDetectorTable {
+  uint32 max_ped_detectors = 1;       // .1.2.6 maxPedestrianDetectors (read-only)
+  repeated PedestrianDetectorEntry detectors = 2;
+}
+
+
+// ============================================================
+// NOTE: NTCIP 1202 v03A does NOT define a top-level Priority / TSP
+// group at OID .1.3.6.1.4.1.1206.4.2.1.14 — that OID is `siuport1`
+// (SIU Port 1, ITS Cabinet V1 §4.7.14.7.1). Transit Signal Priority
+// in NTCIP 1202 v03 is exposed through the I/O mapping group
+// (priorityRequest, priorityCheckout input functions; preemptActive
+// outputs) and via the existing Preempt table for emergency
+// preemption. A dedicated TSP table is not standardized here.
+// Removed in this revision: previous PriorityEntry/PriorityType/
+// PriorityTable/PriorityStatus/PriorityStateDetail/PriorityCurrentState
+// messages and enums (none of which mapped to real OIDs).
+// ============================================================
+
+
+// ============================================================
+// COMPOSITE MESSAGES — Full Controller State
+// ============================================================
+
+// Complete controller configuration (all read-write parameters).
+// Used for bulk upload/download of controller configuration.
+message ControllerConfig {
+  PhaseTable phases = 1;
+  DetectorTable detectors = 2;
+  UnitParams unit = 3;
+  CoordTable coordination = 4;
+  TimebaseTable timebase = 5;
+  PreemptTable preempts = 6;
+  RingTable rings = 7;
+  ChannelTable channels = 8;
+  OverlapTable overlaps = 9;
+  SpecialFunctionTable special_functions = 10;
+  PedestrianDetectorTable ped_detectors = 11;
+
+  // Ring-barrier structure (derived from phase ring assignments + sequences)
+  RingBarrierConfig ring_barrier = 20;
+}
+
+// Complete controller status snapshot (all read-only registers).
+// Published periodically or on-change for real-time monitoring.
+message ControllerStatus {
+  PhaseStatusGroup phase_status = 1;
+  PhaseControlGroup phase_control = 2;  // Current control state (reflects commands)
+  DetectorStatusGroup detector_status = 3;
+  UnitAlarmStatus unit_alarms = 4;
+  CoordStatus coord_status = 5;
+  TimebaseStatus timebase_status = 6;
+  PreemptStatus preempt_status = 7;
+  ChannelStatusGroup channel_status = 8;
+  OverlapStatusGroup overlap_status = 9;
+
+  // Metadata
+  google.protobuf.Timestamp snapshot_time = 20;
+  UnitControlMode control_mode = 21;
+}
+
+
+// ============================================================
+// (NTCIP 1202 is OID-addressed via SNMP; it does not define an
+// event-code enumeration. Indiana Hi-Resolution event codes used
+// by ATSPM analytics live in `ihr_events.proto` as `EventType`.)
+// ============================================================
