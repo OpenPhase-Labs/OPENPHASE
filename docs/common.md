@@ -48,7 +48,7 @@ Producers MUST set this field. Consumers can use it to weight, gate, or flag ana
 | 4 | `CLOCK_POWER_LINE` | Legacy 60 Hz line sync — ~16 ms jitter, unreliable |
 | 5 | `CLOCK_FREE_RUNNING` | No external sync — drift accumulates |
 
-PTP-synced devices (e.g., PRISM hardware) should publish with `CLOCK_PTP`. Legacy NTP-only controllers should publish `CLOCK_NTP`. Anything sub-PTP is unsuitable for inter-intersection cycle alignment analytics.
+PTP-synced devices (e.g., SOMA hardware) should publish with `CLOCK_PTP`. Legacy NTP-only controllers should publish `CLOCK_NTP`. Anything sub-PTP is unsuitable for inter-intersection cycle alignment analytics.
 
 ## Wire-format tips
 

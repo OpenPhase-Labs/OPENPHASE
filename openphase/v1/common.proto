@@ -59,7 +59,7 @@ message IntersectionUpdate {
 
   // Time synchronization quality of the producing device.
   // Enables ATSPM analytics to weight or flag data from devices with
-  // lower timing accuracy (e.g., legacy NTP-only controllers vs PTP-synced PRISM).
+  // lower timing accuracy (e.g., legacy NTP-only controllers vs PTP-synced SOMA).
   ClockSource clock_source = 15;
 }
 

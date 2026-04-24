@@ -26,7 +26,7 @@
 | `buffer_used_pct` | 22 | float | Event buffer utilization percentage |
 | `disk_used_pct` | 23 | float | eMMC storage utilization (local logging) |
 
-### Cabinet environmental (J7 sensors on PRISM hardware)
+### Cabinet environmental (J7 sensors on hardware)
 | Field | # | Type | Notes |
 |-------|---|------|-------|
 | `cabinet_temp_c` | 25 | float | Cabinet temperature (DS18B20 on J7 pin 2) |
@@ -52,7 +52,7 @@
 | `firmware_version` | 50 | string | Firmware version (e.g., `"2.1.3"`) |
 | `decoder_version` | 51 | string | Event decoder version |
 | `mapping_version` | 52 | string | Bit-to-event mapping table version |
-| `hardware_revision` | 53 | string | Hardware revision (e.g., `"PRISM-v1.2"`) |
+| `hardware_revision` | 53 | string | Hardware revision (e.g., `"SOMA-v1.2"`) |
 
 ## `HealthStatus` enum
 
@@ -66,5 +66,5 @@
 ## Notes
 
 - Field numbers are intentionally non-contiguous (10, 20, 25, 30, 35, 40, 50) to leave room for future additions per category.
-- The PRISM-specific cabinet sensor fields (J1/J3/J4/J7/J8 references) are appropriate for the OpenPhase v1 reference hardware. Other implementations with different I/O can leave them at zero/empty without breaking consumers.
+- The SOMA-specific cabinet sensor fields (J1/J3/J4/J7/J8 references) are appropriate for the OpenPhase v1 reference hardware. Other implementations with different I/O can leave them at zero/empty without breaking consumers.
 - For fleet monitoring, consumers should alert on `events_dropped > 0` over any heartbeat interval (lossy transport or backlog) and on `nats_connected = false` for more than a couple of intervals (publish path broken).

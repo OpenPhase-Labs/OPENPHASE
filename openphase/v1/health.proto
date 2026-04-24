@@ -70,5 +70,5 @@ message DeviceHealth {
   string firmware_version = 50;         // Firmware version (e.g., "2.1.3")
   string decoder_version = 51;          // Event decoder version
   string mapping_version = 52;          // Bit-to-event mapping table version
-  string hardware_revision = 53;        // PRISM hardware revision (e.g., "PRISM-v1.2")
+  string hardware_revision = 53;        // SOMA hardware revision (e.g., "SOMA-v1.2")
 }

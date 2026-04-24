@@ -63,7 +63,7 @@ enum FaultType {
   SECURITY_VETO = 4;                    // Security system vetoed operation
   DECODER_ERROR = 5;                    // Event decoder encountered unrecoverable error
   BUFFER_OVERFLOW = 6;                  // Event buffer full (events being dropped)
-  HARDWARE_FAULT = 7;                   // PRISM hardware fault (temp, voltage, etc.)
+  HARDWARE_FAULT = 7;                   // SOMA hardware fault (temp, voltage, etc.)
 }
 
 // Controller coordination state.
